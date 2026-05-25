@@ -45,7 +45,7 @@ class MaskingAuditAndImportTests(unittest.TestCase):
         self.assertIn("login_password_set", settings)
         self.assertIn("temp_mail_api_key_set", settings)
 
-    def test_account_get_does_not_return_password_or_refresh_token(self):
+    def test_account_get_returns_password_and_refresh_token_for_editing(self):
         unique = uuid.uuid4().hex
         email_addr = f"mask_{unique}@example.com"
         password = f"pass_{unique}"
@@ -84,14 +84,14 @@ class MaskingAuditAndImportTests(unittest.TestCase):
         account = data.get("account") or {}
         self.assertEqual(account.get("id"), account_id)
         self.assertEqual(account.get("email"), email_addr)
-        self.assertEqual(account.get("password"), "")
-        self.assertEqual(account.get("refresh_token"), "")
+        self.assertEqual(account.get("password"), password)
+        self.assertEqual(account.get("refresh_token"), refresh_token)
         self.assertEqual(account.get("has_password"), True)
         self.assertEqual(account.get("has_refresh_token"), True)
 
         body_text = resp.get_data(as_text=True)
-        self.assertNotIn(password, body_text)
-        self.assertNotIn(refresh_token, body_text)
+        self.assertIn(password, body_text)
+        self.assertIn(refresh_token, body_text)
 
     def test_system_group_cannot_be_renamed(self):
         client = self.app.test_client()

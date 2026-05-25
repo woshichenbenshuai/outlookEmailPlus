@@ -399,9 +399,9 @@
                     document.getElementById('editAccountType').value = acc.account_type || 'outlook';
                     document.getElementById('editEmail').value = acc.email;
                     document.getElementById('editPassword').value = acc.password || '';
-                    clientIdInput.value = acc.client_id;
+                    clientIdInput.value = acc.client_id || '';
                     clientIdInput.dataset.originalValue = acc.client_id || '';
-                    refreshTokenInput.value = acc.refresh_token;
+                    refreshTokenInput.value = acc.refresh_token || '';
                     document.getElementById('editGroupSelect').value = acc.group_id || 1;
                     document.getElementById('editRemark').value = acc.remark || '';
                     document.getElementById('editStatus').value = acc.status || 'active';

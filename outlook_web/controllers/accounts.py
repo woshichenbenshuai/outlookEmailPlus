@@ -265,23 +265,25 @@ def api_get_account(account_id: int) -> Any:
             status=404,
         )
 
+    account_type = account.get("account_type") or "outlook"
+    display_password = account.get("imap_password") if account_type == "imap" else account.get("password")
+
     return jsonify(
         {
             "success": True,
             "account": {
                 "id": account["id"],
                 "email": account["email"],
-                # 敏感字段默认不回显（避免泄露）；如需查看请走"导出+二次验证"
-                "password": "",
-                "client_id": account["client_id"],
-                "refresh_token": "",
-                "has_password": bool(account.get("password")),
+                "password": display_password or "",
+                "client_id": account.get("client_id") or "",
+                "refresh_token": account.get("refresh_token") or "",
+                "has_password": bool(display_password),
                 "has_refresh_token": bool(account.get("refresh_token")),
                 "group_id": account.get("group_id"),
                 "group_name": account.get("group_name", "默认分组"),
                 "remark": account.get("remark", ""),
                 "status": account.get("status", "active"),
-                "account_type": account.get("account_type") or "outlook",
+                "account_type": account_type,
                 "provider": account.get("provider") or "outlook",
                 "telegram_push_enabled": bool(account.get("telegram_push_enabled")),
                 "notification_enabled": bool(account.get("telegram_push_enabled")),
