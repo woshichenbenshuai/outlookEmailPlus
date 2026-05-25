@@ -142,7 +142,7 @@ docker run -d \
   -e SECRET_KEY=your-secret-key-here \
   -e LOGIN_PASSWORD=your-login-password \
   -e ALLOW_LOGIN_PASSWORD_CHANGE=false \
-  guangshanshui/outlook-email-plus:latest
+  ghcr.io/woshichenbenshuai/outlook-email-plus:latest
 ```
 
 **方式二：docker-compose（推荐，含一键更新）**
@@ -152,8 +152,7 @@ docker run -d \
 ```yaml
 services:
   app:
-    image: ghcr.io/zeropointsix/outlook-email-plus:latest   # 推荐（国内网络稳定）
-    # image: guangshanshui/outlook-email-plus:latest         # Docker Hub 备选
+    image: ghcr.io/woshichenbenshuai/outlook-email-plus:latest
     container_name: outlook-email-plus
     restart: unless-stopped
     ports:

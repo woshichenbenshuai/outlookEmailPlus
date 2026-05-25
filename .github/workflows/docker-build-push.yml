@@ -20,7 +20,7 @@ on:
 
 env:
   # Docker Hub（可选）：需要配置仓库 Secrets：DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
-  DOCKERHUB_IMAGE: guangshanshui/outlook-email-plus
+  DOCKERHUB_IMAGE: woshichenbenshuai/outlook-email-plus
 
 jobs:
   quality-gate:
