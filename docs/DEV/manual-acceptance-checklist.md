@@ -45,7 +45,7 @@ WATCHTOWER_HTTP_API_TOKEN=test-token
    ```bash
    docker run -d \
      --name outlook-local-test \
-     -p 5001:5000 \
+     -p 17001:5000 \
      -v /var/run/docker.sock:/var/run/docker.sock \
      -e SECRET_KEY=test-secret \
      -e LOGIN_PASSWORD=admin123 \
@@ -53,7 +53,7 @@ WATCHTOWER_HTTP_API_TOKEN=test-token
      outlook-email-local:test
    ```
 
-2. 访问 `http://localhost:5001` 并登录
+2. 访问 `http://localhost:17001` 并登录
 
 3. 进入 **系统设置 → 一键更新** 页面
 
@@ -191,7 +191,7 @@ docker volume rm outlook-remote-data
 2. 通过浏览器开发者工具或 curl 调用接口：
    ```bash
    # 本地镜像容器
-   curl -H "Cookie: session=<your-session>" http://localhost:5001/api/system/deployment-info
+   curl -H "Cookie: session=<your-session>" http://localhost:17001/api/system/deployment-info
    
    # 远程镜像容器
    curl -H "Cookie: session=<your-session>" http://localhost:5004/api/system/deployment-info
@@ -299,7 +299,7 @@ set -e
 
 echo "=== 测试用例1: 本地构建镜像应被拦截 ==="
 docker build -t outlook-email-local:test .
-docker run -d --name test-local -p 5001:5000 \
+docker run -d --name test-local -p 17001:5000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e SECRET_KEY=test -e LOGIN_PASSWORD=admin123 \
   -e DOCKER_SELF_UPDATE_ALLOW=true \
@@ -308,7 +308,7 @@ docker run -d --name test-local -p 5001:5000 \
 echo "等待容器启动..."
 sleep 10
 
-echo "请手动访问 http://localhost:5001 测试更新触发是否被拦截"
+echo "请手动访问 http://localhost:17001 测试更新触发是否被拦截"
 read -p "按 Enter 继续清理..."
 
 docker stop test-local && docker rm test-local

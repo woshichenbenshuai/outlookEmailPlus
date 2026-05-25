@@ -152,7 +152,7 @@ services:
     container_name: outlook-email-plus
     restart: unless-stopped
     ports:
-      - "5001:5000"           # Change to 5000:5000 or any other port
+      - "17001:5000"          # Change to 5000:5000 or any other port
     env_file:
       - .env
     environment:

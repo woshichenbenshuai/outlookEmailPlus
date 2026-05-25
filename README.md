@@ -157,7 +157,7 @@ services:
     container_name: outlook-email-plus
     restart: unless-stopped
     ports:
-      - "5001:5000"           # 可改为 5000:5000 或其他端口
+      - "17001:5000"          # 可改为 5000:5000 或其他端口
     env_file:
       - .env
     environment:
