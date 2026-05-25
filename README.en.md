@@ -130,6 +130,8 @@ web_outlook_app.py    Backward-compatible entrypoint
 **Option 1: docker run (quick start)**
 
 ```bash
+docker build -t outlook-email-plus:latest .
+
 docker run -d \
   --name outlook-email-plus \
   -p 5000:5000 \
@@ -137,7 +139,7 @@ docker run -d \
   -e SECRET_KEY=your-secret-key-here \
   -e LOGIN_PASSWORD=your-login-password \
   -e ALLOW_LOGIN_PASSWORD_CHANGE=false \
-  ghcr.io/woshichenbenshuai/outlook-email-plus:latest
+  outlook-email-plus:latest
 ```
 
 **Option 2: docker-compose (recommended, includes one-click update)**
@@ -147,7 +149,10 @@ Save the following as `docker-compose.yml`, then run `docker-compose up -d`:
 ```yaml
 services:
   app:
-    image: ghcr.io/woshichenbenshuai/outlook-email-plus:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: outlook-email-plus:latest
     container_name: outlook-email-plus
     restart: unless-stopped
     ports:
@@ -173,6 +178,8 @@ services:
       - outlook-net
 
   watchtower:
+    profiles:
+      - updates
     image: containrrr/watchtower:1.7.1
     container_name: watchtower
     restart: unless-stopped
