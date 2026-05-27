@@ -269,6 +269,35 @@
             }
         }
 
+        function markLoadedEmailAsRead(messageId, folder) {
+            const folderKey = folder || (currentFolder === MAILBOX_ALL_FOLDER ? '' : currentFolder);
+
+            const markInList = (list) => {
+                if (!Array.isArray(list)) return false;
+                let changed = false;
+                list.forEach(email => {
+                    if (!email || email.id !== messageId) return;
+                    if (folderKey && email.folder && email.folder !== folderKey) return;
+                    if (email.is_read === false) {
+                        email.is_read = true;
+                        changed = true;
+                    }
+                });
+                return changed;
+            };
+
+            const changedCurrent = markInList(currentEmails);
+            if (currentAccount && !isTempEmailGroup) {
+                Object.keys(emailListCache || {}).forEach(cacheKey => {
+                    if (!cacheKey.startsWith(`${currentAccount}_`)) return;
+                    markInList(emailListCache[cacheKey]?.emails);
+                });
+            }
+            if (changedCurrent) {
+                renderEmailList(currentEmails, { scrollToTop: false });
+            }
+        }
+
         function isTempEmailSource(source) {
             const normalizedSource = String(source || '').trim().toLowerCase();
             return normalizedSource === 'temp' || normalizedSource === 'temp-mail' || normalizedSource === 'temp_mail';
@@ -621,6 +650,7 @@
 
                 if (data.success) {
                     currentEmailDetail = { ...data.email, folder: detailFolder };
+                    markLoadedEmailAsRead(messageId, detailFolder);
                     try {
                         renderEmailDetail(currentEmailDetail, { source: 'mailbox' });
                     } catch (renderError) {
