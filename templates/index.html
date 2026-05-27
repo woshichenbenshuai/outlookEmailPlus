@@ -253,7 +253,8 @@
                         <div class="column-header">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <div class="email-tabs" id="folderTabs" style="display:none;border:none;">
-                                    <button class="email-tab active" data-folder="inbox" onclick="switchFolder('inbox')">📨 收件箱</button>
+                                    <button class="email-tab active" data-folder="all" onclick="switchFolder('all')">📬 全部邮箱</button>
+                                    <button class="email-tab" data-folder="inbox" onclick="switchFolder('inbox')">📨 收件箱</button>
                                     <button class="email-tab" data-folder="junkemail" onclick="switchFolder('junkemail')">⚠️ 垃圾邮件</button>
                                 </div>
                                 <span style="font-size:0.82rem;color:var(--text-muted);" id="emailCount"></span>

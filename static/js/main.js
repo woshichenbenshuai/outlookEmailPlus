@@ -5,7 +5,7 @@
         let currentGroupId = null;
         let currentEmails = [];
         let currentMethod = 'graph';
-        let currentFolder = 'inbox';
+        let currentFolder = 'all';
         let isListVisible = true;
         let groups = [];
         let accountsCache = {};
@@ -990,10 +990,14 @@
             folderTabs.forEach(tab => tab.disabled = true);
 
             try {
-                const response = await fetch(
-                    `/api/emails/${encodeURIComponent(currentAccount)}?method=${currentMethod}&folder=${currentFolder}&skip=${currentSkip}&top=20`
-                );
-                const data = await response.json();
+                const data = typeof fetchMailboxPage === 'function'
+                    ? await fetchMailboxPage(currentAccount, currentSkip, 20)
+                    : await (async () => {
+                        const response = await fetch(
+                            `/api/emails/${encodeURIComponent(currentAccount)}?method=${currentMethod}&folder=${currentFolder}&skip=${currentSkip}&top=20`
+                        );
+                        return response.json();
+                    })();
 
                 if (data.success && data.emails.length > 0) {
                     // 追加新邮件到列表
@@ -1019,6 +1023,7 @@
                             emailListCache[cacheKey].emails = currentEmails;
                             emailListCache[cacheKey].has_more = hasMoreEmails;
                             emailListCache[cacheKey].skip = currentSkip;
+                            emailListCache[cacheKey].methodLabel = data.method || emailListCache[cacheKey].methodLabel;
                         }
                     }
                 } else {
@@ -1070,7 +1075,7 @@
 
                 // 恢复 UI
                 const methodTag = document.getElementById('methodTag');
-                methodTag.textContent = currentMethod;
+                methodTag.textContent = cache.methodLabel || currentMethod;
                 methodTag.style.display = 'inline';
                 document.getElementById('emailCount').textContent = `(${currentEmails.length})`;
 
@@ -1080,7 +1085,7 @@
                 document.getElementById('emailList').innerHTML = `
                     <div class="empty-state">
                         <span class="empty-icon">📬</span>
-                        <p>${translateAppTextLocal(folder === 'inbox' ? '点击"获取邮件"按钮获取收件箱' : '点击"获取邮件"按钮获取垃圾邮件')}</p>
+                        <p>${translateAppTextLocal(folder === 'all' ? '点击"获取邮件"按钮获取全部邮箱' : (folder === 'inbox' ? '点击"获取邮件"按钮获取收件箱' : '点击"获取邮件"按钮获取垃圾邮件'))}</p>
                     </div>
                 `;
                 document.getElementById('emailCount').textContent = '';

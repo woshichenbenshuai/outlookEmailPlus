@@ -21,6 +21,55 @@
             window.sortEmailsByNewestFirst = sortEmailsByNewestFirst;
         }
 
+        const MAILBOX_ALL_FOLDER = 'all';
+        const MAILBOX_INCLUDED_FOLDERS = ['inbox', 'junkemail'];
+
+        function normalizeMailboxMethod(method) {
+            return method === 'Graph API' ? 'graph' : (method === 'IMAP' ? 'imap' : currentMethod);
+        }
+
+        async function fetchEmailFolderPage(email, folder, skip, top) {
+            const response = await fetch(
+                `/api/emails/${encodeURIComponent(email)}?method=${currentMethod}&folder=${folder}&skip=${skip}&top=${top}`
+            );
+            const data = await response.json();
+            if (data.success) {
+                data.emails = (data.emails || []).map(item => ({ ...item, folder: item.folder || folder }));
+            }
+            return data;
+        }
+
+        async function fetchMailboxPage(email, skip, top) {
+            if (currentFolder !== MAILBOX_ALL_FOLDER) {
+                return fetchEmailFolderPage(email, currentFolder, skip, top);
+            }
+
+            const results = await Promise.all(
+                MAILBOX_INCLUDED_FOLDERS.map(folder => fetchEmailFolderPage(email, folder, skip, top))
+            );
+            const successes = results.filter(item => item && item.success);
+            const failures = results.filter(item => !item || !item.success);
+
+            if (successes.length === 0) {
+                return results[0] || { success: false };
+            }
+
+            if (failures.length > 0 && typeof showToast === 'function') {
+                showToast(translateAppTextLocal('部分邮箱获取失败'), 'error');
+            }
+
+            const methodLabels = [...new Set(successes.map(item => item.method).filter(Boolean))];
+            return {
+                success: true,
+                emails: successes.flatMap(item => item.emails || []),
+                has_more: successes.some(item => item.has_more),
+                method: methodLabels.length > 1 ? methodLabels.join(' + ') : (methodLabels[0] || currentMethod),
+                query_method: normalizeMailboxMethod(successes[0].method),
+                account_summary: successes.find(item => item.account_summary)?.account_summary,
+                partial_failed: failures.length > 0,
+            };
+        }
+
         // 加载邮件列表
         async function loadEmails(email, forceRefresh = false) {
             const container = document.getElementById('emailList');
@@ -42,7 +91,7 @@
 
                 // 恢复 UI
                 const methodTag = document.getElementById('methodTag');
-                methodTag.textContent = currentMethod;
+                methodTag.textContent = cache.methodLabel || currentMethod;
                 methodTag.style.display = 'inline';
                 document.getElementById('emailCount').textContent = `(${currentEmails.length})`;
 
@@ -67,15 +116,12 @@
 
             try {
                 // 每次只查询20封邮件
-                const response = await fetch(
-                    `/api/emails/${encodeURIComponent(email)}?method=${currentMethod}&folder=${currentFolder}&skip=0&top=20`
-                );
-                const data = await response.json();
+                const data = await fetchMailboxPage(email, 0, 20);
 
                 if (data.success) {
                     const sortedEmails = sortEmailsByNewestFirst(data.emails || []);
                     currentEmails = sortedEmails;
-                    currentMethod = data.method === 'Graph API' ? 'graph' : 'imap';
+                    currentMethod = data.query_method || normalizeMailboxMethod(data.method);
                     hasMoreEmails = data.has_more;
                     if (typeof syncAccountSummaryToAccountCache === 'function' && data.account_summary) {
                         syncAccountSummaryToAccountCache(email, data.account_summary);
@@ -90,15 +136,14 @@
                         emails: currentEmails,
                         has_more: hasMoreEmails,
                         skip: currentSkip,
-                        method: currentMethod
+                        method: currentMethod,
+                        methodLabel: data.method
                     };
 
                     // 显示使用的方法和邮件数量
                     const methodTag = document.getElementById('methodTag');
                     methodTag.textContent = data.method;
                     methodTag.style.display = 'inline';
-
-                    document.getElementById('emailCount').textContent = `(${data.emails.length})`;
 
                     document.getElementById('emailCount').textContent = `(${currentEmails.length})`;
 
@@ -149,10 +194,11 @@
             const actionBar = document.getElementById('emailBatchActionBar');
 
             if (emails.length === 0) {
+                const emptyText = currentFolder === 'all' ? '全部邮箱为空' : (currentFolder === 'junkemail' ? '垃圾邮件为空' : '收件箱为空');
                 container.innerHTML = `
                     <div class="empty-state">
                         <span class="empty-icon">📭</span>
-                        <p>${translateAppTextLocal('收件箱为空')}</p>
+                        <p>${translateAppTextLocal(emptyText)}</p>
                     </div>
                 `;
                 selectedEmailIds.clear();
@@ -562,13 +608,15 @@
             container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span></div>';
 
             try {
-                const response = await fetch(`/api/email/${encodeURIComponent(currentAccount)}/${encodeURIComponent(messageId)}?method=${currentMethod}&folder=${currentFolder}`);
+                const selectedEmail = currentEmails[index] || {};
+                const detailFolder = selectedEmail.folder || (currentFolder === MAILBOX_ALL_FOLDER ? 'inbox' : currentFolder);
+                const response = await fetch(`/api/email/${encodeURIComponent(currentAccount)}/${encodeURIComponent(messageId)}?method=${currentMethod}&folder=${detailFolder}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    currentEmailDetail = data.email;
+                    currentEmailDetail = { ...data.email, folder: detailFolder };
                     try {
-                        renderEmailDetail(data.email, { source: 'mailbox' });
+                        renderEmailDetail(currentEmailDetail, { source: 'mailbox' });
                     } catch (renderError) {
                         console.error('渲染邮件详情失败:', renderError);
                         // 渲染失败时回退为纯文本显示

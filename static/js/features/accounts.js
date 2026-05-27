@@ -4,7 +4,7 @@
         function selectAccount(email) {
             currentAccount = email;
             isTempEmailGroup = false;
-            currentFolder = 'inbox';
+            currentFolder = 'all';
             currentMethod = 'graph';
 
             document.getElementById('currentAccountBar').style.display = '';
@@ -28,11 +28,11 @@
             if (folderTabs) {
                 folderTabs.style.display = 'flex';
                 document.querySelectorAll('.email-tab').forEach(tab => {
-                    tab.classList.toggle('active', tab.dataset.folder === 'inbox');
+                    tab.classList.toggle('active', tab.dataset.folder === 'all');
                 });
             }
 
-            const cacheKey = `${email}_inbox`;
+            const cacheKey = `${email}_all`;
 
             if (emailListCache[cacheKey]) {
                 const cache = emailListCache[cacheKey];
