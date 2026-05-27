@@ -298,6 +298,25 @@
             }
         }
 
+        async function persistEmailReadState(messageId, folder) {
+            if (!currentAccount || isTempEmailGroup) return false;
+            try {
+                const response = await fetch(
+                    `/api/email/${encodeURIComponent(currentAccount)}/${encodeURIComponent(messageId)}/mark-read?method=${currentMethod}&folder=${folder}`,
+                    { method: 'POST' }
+                );
+                const data = await response.json();
+                if (data && data.success) {
+                    markLoadedEmailAsRead(messageId, folder);
+                    return true;
+                }
+                console.warn('标记已读失败:', data);
+            } catch (error) {
+                console.warn('标记已读请求失败:', error);
+            }
+            return false;
+        }
+
         function isTempEmailSource(source) {
             const normalizedSource = String(source || '').trim().toLowerCase();
             return normalizedSource === 'temp' || normalizedSource === 'temp-mail' || normalizedSource === 'temp_mail';
@@ -650,9 +669,9 @@
 
                 if (data.success) {
                     currentEmailDetail = { ...data.email, folder: detailFolder };
-                    markLoadedEmailAsRead(messageId, detailFolder);
                     try {
                         renderEmailDetail(currentEmailDetail, { source: 'mailbox' });
+                        persistEmailReadState(messageId, detailFolder);
                     } catch (renderError) {
                         console.error('渲染邮件详情失败:', renderError);
                         // 渲染失败时回退为纯文本显示

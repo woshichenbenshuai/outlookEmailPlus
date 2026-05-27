@@ -254,6 +254,68 @@ def get_email_raw_graph(
         return None
 
 
+def mark_email_read_graph(
+    client_id: str,
+    refresh_token: str,
+    message_id: str,
+    proxy_url: str = None,
+) -> Dict[str, Any]:
+    """使用 Graph API 将邮件标记为已读。需要 Mail.ReadWrite 权限。"""
+    token_result = get_access_token_graph_result(client_id, refresh_token, proxy_url)
+    if not token_result.get("success"):
+        return {"success": False, "error": token_result.get("error")}
+
+    access_token = token_result.get("access_token")
+    if not access_token:
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "GRAPH_TOKEN_FAILED",
+                "获取访问令牌失败",
+                "GraphAPIError",
+                500,
+                "empty_access_token",
+            ),
+        }
+
+    try:
+        proxies = build_proxies(proxy_url)
+        response = requests.patch(
+            f"https://graph.microsoft.com/v1.0/me/messages/{message_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json={"isRead": True},
+            timeout=30,
+            proxies=proxies,
+        )
+        if response.status_code in (200, 202):
+            return {"success": True, "method": "Graph API"}
+
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "EMAIL_MARK_READ_FAILED",
+                "标记已读失败，请确认账号已授予 Mail.ReadWrite 权限",
+                "GraphAPIError",
+                response.status_code,
+                get_response_details(response),
+            ),
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "EMAIL_MARK_READ_FAILED",
+                "标记已读失败",
+                type(exc).__name__,
+                502,
+                str(exc),
+            ),
+        }
+
+
 def test_refresh_token(client_id: str, refresh_token: str, proxy_url: str = None) -> tuple[bool, str | None]:
     """测试 refresh token 是否有效，返回 (是否成功, 错误信息)"""
     ok, err, _new_refresh_token = test_refresh_token_with_rotation(client_id, refresh_token, proxy_url)

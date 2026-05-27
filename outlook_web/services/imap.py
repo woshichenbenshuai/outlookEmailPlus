@@ -83,7 +83,7 @@ def get_email_body(msg) -> str:
     return body
 
 
-def _select_folder(connection, folder: str) -> Optional[str]:
+def _select_folder(connection, folder: str, readonly: bool = True) -> Optional[str]:
     folder_map = {
         "inbox": ["INBOX"],
         "junk": ["Junk", "Junk Email", "Spam", "垃圾邮件"],
@@ -95,7 +95,7 @@ def _select_folder(connection, folder: str) -> Optional[str]:
     for candidate in candidates:
         for select_target in (f'"{candidate}"', candidate):
             try:
-                status, _ = connection.select(select_target, readonly=True)
+                status, _ = connection.select(select_target, readonly=readonly)
                 if status == "OK":
                     return candidate
             except Exception:
@@ -696,3 +696,41 @@ def delete_emails_imap(
         return {"success": False, "error": "IMAP 删除暂不支持 (ID 格式不兼容)"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def mark_email_read_imap(
+    email_addr: str,
+    client_id: str,
+    refresh_token: str,
+    message_id: str,
+    folder: str,
+    server: str = IMAP_SERVER_NEW,
+) -> Dict[str, Any]:
+    """通过 OAuth IMAP 将邮件标记为已读。message_id 为当前列表返回的 IMAP 序号。"""
+    access_token = get_access_token_imap(client_id, refresh_token)
+    if not access_token:
+        return {"success": False, "error": "获取 Access Token 失败"}
+
+    connection = None
+    try:
+        connection = imaplib.IMAP4_SSL(server, IMAP_PORT)
+        auth_string = f"user={email_addr}\1auth=Bearer {access_token}\1\1".encode("utf-8")
+        connection.authenticate("XOAUTH2", lambda x: auth_string)
+
+        selected_folder = _select_folder(connection, folder, readonly=False)
+        if not selected_folder:
+            return {"success": False, "error": "无法访问文件夹"}
+
+        store_id = message_id.encode("utf-8") if isinstance(message_id, str) else message_id
+        status, response = connection.store(store_id, "+FLAGS.SILENT", r"(\Seen)")
+        if status == "OK":
+            return {"success": True, "method": "IMAP"}
+        return {"success": False, "error": f"store status={status}, response={response}"}
+    except Exception as exc:
+        return {"success": False, "error": str(exc)}
+    finally:
+        if connection:
+            try:
+                connection.logout()
+            except Exception:
+                pass

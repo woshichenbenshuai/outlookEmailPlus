@@ -22,6 +22,7 @@ from outlook_web.services import verification_channel_routing as verification_ch
 from outlook_web.services.imap_generic import (
     get_email_detail_imap_generic_result,
     get_emails_imap_generic,
+    mark_email_read_imap_generic,
 )
 from outlook_web.services.mailbox_resolver import normalize_alias_email
 
@@ -549,6 +550,80 @@ def api_get_email_detail(email_addr: str, message_id: str) -> Any:
         message_en="Failed to fetch email details",
         status=502,
         details=f"email={email_addr} message_id={message_id}",
+    )
+
+
+@login_required
+def api_mark_email_read(email_addr: str, message_id: str) -> Any:
+    """将邮件同步标记为已读。"""
+    email_addr = normalize_alias_email(email_addr) or ""
+    account = accounts_repo.get_account_by_email(email_addr)
+    if not account:
+        return build_error_response(
+            "ACCOUNT_NOT_FOUND",
+            "账号不存在",
+            message_en="Account not found",
+            status=404,
+        )
+
+    folder = (request.args.get("folder") or "inbox").strip().lower() or "inbox"
+    method = (request.args.get("method") or "graph").strip().lower()
+    account_type = (account.get("account_type") or "outlook").strip().lower()
+
+    if account_type == "imap":
+        result = mark_email_read_imap_generic(
+            email_addr=email_addr,
+            imap_password=account.get("imap_password", "") or "",
+            imap_host=account.get("imap_host", "") or "",
+            imap_port=account.get("imap_port", 993) or 993,
+            message_id=message_id,
+            folder=folder,
+            provider=account.get("provider", "_default") or "_default",
+        )
+    elif method == "imap":
+        result = imap_service.mark_email_read_imap(
+            email_addr=account["email"],
+            client_id=account["client_id"],
+            refresh_token=account["refresh_token"],
+            message_id=message_id,
+            folder=folder,
+            server=IMAP_SERVER_NEW,
+        )
+        if not result.get("success"):
+            result = imap_service.mark_email_read_imap(
+                email_addr=account["email"],
+                client_id=account["client_id"],
+                refresh_token=account["refresh_token"],
+                message_id=message_id,
+                folder=folder,
+                server=IMAP_SERVER_OLD,
+            )
+    else:
+        proxy_url = ""
+        if account.get("group_id"):
+            group = groups_repo.get_group_by_id(account["group_id"])
+            if group:
+                proxy_url = group.get("proxy_url", "") or ""
+        result = graph_service.mark_email_read_graph(
+            account["client_id"],
+            account["refresh_token"],
+            message_id,
+            proxy_url,
+        )
+
+    if result.get("success"):
+        log_audit("mark_read", "email", email_addr, f"标记邮件已读: {message_id}")
+        return jsonify({"success": True, "method": result.get("method")})
+
+    error_payload = result.get("error")
+    if isinstance(error_payload, dict):
+        return _build_response_from_error_payload(error_payload)
+    return build_error_response(
+        "EMAIL_MARK_READ_FAILED",
+        "标记已读失败",
+        message_en="Failed to mark email as read",
+        status=502,
+        details=str(error_payload or ""),
     )
 
 

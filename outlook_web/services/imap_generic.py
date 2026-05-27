@@ -153,12 +153,13 @@ def _normalize_imap_auth_error_message(raw_message: str, *, provider: str, imap_
 def _resolve_imap_folder(
     mail: imaplib.IMAP4_SSL,
     candidates: List[str],
+    readonly: bool = True,
 ) -> Optional[str]:
     """按优先级 SELECT 文件夹，返回第一个成功的文件夹名。"""
     for folder_name in candidates or []:
         for try_name in _quote_if_needed(folder_name):
             try:
-                status, resp = mail.select(try_name, readonly=True)
+                status, resp = mail.select(try_name, readonly=readonly)
                 _LOGGER.debug("imap_select try=%s status=%s resp=%s", try_name, status, resp)
                 if status == "OK":
                     return try_name
@@ -565,3 +566,88 @@ def get_email_detail_imap_generic(
     if result.get("success"):
         return result.get("email")
     return None
+
+
+def mark_email_read_imap_generic(
+    email_addr: str,
+    imap_password: str,
+    imap_host: str,
+    imap_port: int = 993,
+    message_id: str = "",
+    folder: str = "inbox",
+    provider: str = "_default",
+) -> Dict[str, Any]:
+    """标准 IMAP 账号按 UID 标记已读。"""
+    if not message_id:
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "EMAIL_MARK_READ_INVALID",
+                "message_id 不能为空",
+                "ValidationError",
+                400,
+                "",
+            ),
+        }
+
+    mail = None
+    try:
+        mail = _create_imap_connection(imap_host, imap_port)
+        try:
+            mail.login(email_addr, imap_password)
+        except imaplib.IMAP4.error as exc:
+            message = _normalize_imap_auth_error_message(str(exc), provider=provider, imap_host=imap_host)
+            return {
+                "success": False,
+                "error": build_error_payload("IMAP_AUTH_FAILED", message, "IMAPAuthError", 401, ""),
+                "error_code": "IMAP_AUTH_FAILED",
+            }
+
+        candidates = get_imap_folder_candidates(provider, folder)
+        selected = _resolve_imap_folder(mail, candidates, readonly=False)
+        if not selected:
+            return {
+                "success": False,
+                "error": build_error_payload(
+                    "IMAP_FOLDER_NOT_FOUND",
+                    "IMAP 文件夹不存在或无权限访问",
+                    "IMAPFolderError",
+                    400,
+                    {"provider": provider, "folder": folder, "candidates": candidates},
+                ),
+                "error_code": "IMAP_FOLDER_NOT_FOUND",
+            }
+
+        uid = message_id.encode("utf-8") if isinstance(message_id, str) else message_id
+        status, response = mail.uid("STORE", uid, "+FLAGS.SILENT", r"(\Seen)")
+        if status == "OK":
+            return {"success": True, "method": "IMAP (Generic)"}
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "EMAIL_MARK_READ_FAILED",
+                "标记已读失败",
+                "IMAPStoreError",
+                502,
+                f"status={status}, response={response}",
+            ),
+            "error_code": "EMAIL_MARK_READ_FAILED",
+        }
+    except Exception as exc:
+        return {
+            "success": False,
+            "error": build_error_payload(
+                "IMAP_CONNECT_FAILED",
+                sanitize_error_details(str(exc)) or "IMAP 连接失败",
+                "IMAPConnectError",
+                502,
+                "",
+            ),
+            "error_code": "IMAP_CONNECT_FAILED",
+        }
+    finally:
+        if mail:
+            try:
+                mail.logout()
+            except Exception:
+                pass
