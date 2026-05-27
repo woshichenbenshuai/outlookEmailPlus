@@ -215,6 +215,9 @@
                 const isChecked = selectedEmailIds.has(email.id);
                 const isActive = currentActiveId && email.id === currentActiveId;
                 const initial = (email.from || '?')[0].toUpperCase();
+                const readBadge = email.is_read === false
+                    ? `<span class="email-read-badge unread">${translateAppTextLocal('未读')}</span>`
+                    : `<span class="email-read-badge read">${translateAppTextLocal('已读')}</span>`;
                 return `
                 <div class="email-item ${email.is_read === false ? 'unread' : ''} ${isActive ? 'active' : ''}"
                      onclick="${clickHandler}('${email.id}', ${index})">
@@ -227,7 +230,10 @@
                         <div class="email-subject">${escapeHtml(email.subject || '无主题')}</div>
                         <div class="email-preview">${escapeHtml(email.body_preview || '')}</div>
                     </div>
-                    <div class="email-time">${formatDate(email.date)}</div>
+                    <div class="email-side-meta">
+                        <div class="email-time">${formatDate(email.date)}</div>
+                        ${readBadge}
+                    </div>
                 </div>
             `}).join('');
 

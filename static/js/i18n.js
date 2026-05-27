@@ -314,6 +314,8 @@
         '📬 全部邮箱': '📬 All Mail',
         '📨 收件箱': '📨 Inbox',
         '⚠️ 垃圾邮件': '⚠️ Junk Email',
+        '已读': 'Read',
+        '未读': 'Unread',
         '获取邮件': 'Fetch Emails',
         '最新邮件': 'Latest Email',
         '标签': 'Tags',
